@@ -7,7 +7,9 @@
 
 # 3rd party libraries
 /Assets/Demigiant/
+/Assets/Demigiant.meta
 /Assets/TextMesh Pro/
+/Assets/TextMesh Pro.meta
 
 # Visual Studio 2015 cache directory
 /.vs/
