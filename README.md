@@ -32,7 +32,8 @@ private void Start()
 }
 ```
 #### Features
-- Just like normal tweens. Kill, SetDelay, SetLoops, etc. work. Sequences work.
+- Tween position, rotation, scale, and color. Includes the special transform extensions like DOPunch, DOShake
+- Controlled like normal tweens. Kill, SetDelay, SetLoops, etc. work. Sequences work.
 - If you tween a character at an index that doesn't exist, the tween still happens. For example, you could oscillate the first 100 characters of an input field and the animation will happen as the user types in characters. 
 
 #### Limitations
