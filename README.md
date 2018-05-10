@@ -31,3 +31,17 @@ private void Start()
     }
 }
 ```
+#### Features
+- Just like normal tweens. Kill, SetDelay, SetLoops, etc. work. Sequences work.
+- If you tween a character at an index that doesn't exist, the tween will occur once the there is a character at that index.
+
+#### Limitations
+- Large performance overhead; may not be suitable on low-end mobile devices or very long text.
+- Doesn't work with per-material properties such as Outline, Glow, Underlay.
+- **Only works when Start() is called; you cannot tween characters in the same frame that the TextMeshPro component is enabled!**
+
+## Installation
+- Have [DOTween](http://dotween.demigiant.com/index.php) and [TextMeshPro](https://assetstore.unity.com/packages/essentials/beta-projects/textmesh-pro-84126) installed in your project.
+- Get the .unitypackage from the latest release.
+- Open and import, uncheck the Examples folder if needed.
+- Go crazy!
