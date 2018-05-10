@@ -33,7 +33,7 @@ private void Start()
 ```
 #### Features
 - Just like normal tweens. Kill, SetDelay, SetLoops, etc. work. Sequences work.
-- If you tween a character at an index that doesn't exist, the tween will occur once the there is a character at that index.
+- If you tween a character at an index that doesn't exist, the tween still happens. For example, you could oscillate the first 100 characters of an input field and the animation will happen as the user types in characters. 
 
 #### Limitations
 - Large performance overhead; may not be suitable on low-end mobile devices or very long text.
