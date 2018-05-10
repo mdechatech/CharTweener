@@ -42,6 +42,6 @@ private void Start()
 
 ## Installation
 - Have [DOTween](http://dotween.demigiant.com/index.php) and [TextMeshPro](https://assetstore.unity.com/packages/essentials/beta-projects/textmesh-pro-84126) installed in your project.
-- Get the .unitypackage from the latest release.
+- Get the .unitypackage from the [latest release](https://github.com/mdechatech/CharTweener/releases).
 - Open and import, uncheck the Examples folder if needed.
 - Go crazy!
