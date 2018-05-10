@@ -5,14 +5,14 @@ using UnityEngine;
 
 namespace CharTween.Examples
 {
-    public class CharTweenExample : MonoBehaviour
+    public class CharTweenExampleFull : MonoBehaviour
     {
         public TMP_Text Target;
         private CharTweener _tweener;
 
         public void Start()
         {
-            _tweener = Target.GetCharModifier();
+            _tweener = Target.GetCharTweener();
             ApplyTweenToLine(0, Tween1);
             ApplyTweenToLine(1, Tween2);
             ApplyTweenToLine(2, Tween3);

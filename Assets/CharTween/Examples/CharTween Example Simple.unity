@@ -121,10 +121,10 @@ GameObject:
   serializedVersion: 5
   m_Component:
   - component: {fileID: 1075228586}
-  - component: {fileID: 1075228585}
-  - component: {fileID: 1075228583}
-  - component: {fileID: 1075228584}
   - component: {fileID: 1075228587}
+  - component: {fileID: 1075228585}
+  - component: {fileID: 1075228584}
+  - component: {fileID: 1075228583}
   - component: {fileID: 1075228582}
   m_Layer: 0
   m_Name: TextMeshPro
@@ -152,13 +152,7 @@ MonoBehaviour:
       m_Calls: []
     m_TypeName: UnityEngine.UI.MaskableGraphic+CullStateChangedEvent, UnityEngine.UI,
       Version=1.0.0.0, Culture=neutral, PublicKeyToken=null
-  m_text: 'DETERMINATION
-
-    DETERMINATION
-
-    DETERMINATION
-
-    DETERMINATION'
+  m_text: here we go!
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 843cb3f7719b79841b8864436d4b7a4c, type: 2}
   m_sharedMaterial: {fileID: 21218518644432016, guid: 843cb3f7719b79841b8864436d4b7a4c,
@@ -226,12 +220,12 @@ MonoBehaviour:
   m_margin: {x: 0, y: 0, z: 0, w: 0}
   m_textInfo:
     textComponent: {fileID: 1075228582}
-    characterCount: 55
+    characterCount: 11
     spriteCount: 0
-    spaceCount: 3
-    wordCount: 4
+    spaceCount: 2
+    wordCount: 3
     linkCount: 0
-    lineCount: 4
+    lineCount: 1
     pageCount: 1
     materialCount: 1
   m_havePropertiesChanged: 0
@@ -325,10 +319,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 1075228581}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dae0cbb4a87099b45963dbfe1bcc3cc3, type: 3}
+  m_Script: {fileID: 11500000, guid: 21fe77689d1e1934fa04017e19e020fe, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  Target: {fileID: 1075228582}
 --- !u!1 &1153254298
 GameObject:
   m_ObjectHideFlags: 0

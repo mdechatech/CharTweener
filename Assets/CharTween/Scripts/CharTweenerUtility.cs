@@ -10,7 +10,7 @@ namespace CharTween
         /// <summary>
         /// Returns a <see cref="CharTweener"/> guaranteeing the same instance is used for the same text.
         /// </summary>
-        public static CharTweener GetCharModifier(this TMP_Text text)
+        public static CharTweener GetCharTweener(this TMP_Text text)
         {
             if (CharModifiers.ContainsKey(text))
                 return CharModifiers[text];

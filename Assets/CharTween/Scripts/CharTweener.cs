@@ -127,7 +127,7 @@ namespace CharTween
 
         /// <summary>
         /// Must be called after <see cref="Text"/> is assigned. This is handled automatically when calling 
-        /// <see cref="CharTweenerUtility.GetCharModifier"/>.
+        /// <see cref="CharTweenerUtility.GetCharTweener"/>.
         /// </summary>
         public void Initialize()
         {
