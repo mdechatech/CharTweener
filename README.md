@@ -34,12 +34,12 @@ private void Start()
 #### Features
 - Tween position, rotation, scale, and color. Includes the special transform extensions like DOPunch, DOShake
 - Controlled like normal tweens. Kill, SetDelay, SetLoops, etc. work. Sequences work.
-- If you tween a character at an index that doesn't exist, the tween still happens. For example, you could oscillate the first 100 characters of an input field and the animation will happen as the user types in characters. 
+- If you tween a character at an index that doesn't exist, the tween still happens. For example, you could oscillate the first 100 characters of an empty input field and the animation will happen as the user types in characters. 
 
 #### Limitations
 - Large performance overhead; may not be suitable on low-end mobile devices or very long text.
 - Doesn't work with per-material properties such as Outline, Glow, Underlay.
-- **Only works when Start() is called; you cannot tween characters in the same frame that the TextMeshPro component is enabled!**
+- **Only works once Start is called; you cannot tween characters in the same frame that the TextMeshPro component is enabled for the first time!**
 
 ## Installation
 - Have [DOTween](http://dotween.demigiant.com/index.php) and [TextMeshPro](https://assetstore.unity.com/packages/essentials/beta-projects/textmesh-pro-84126) installed in your project.
