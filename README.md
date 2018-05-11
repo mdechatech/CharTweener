@@ -46,3 +46,5 @@ private void Start()
 - Get the .unitypackage from the [latest release](https://github.com/mdechatech/CharTweener/releases).
 - Open and import, uncheck the Examples folder if needed.
 - Go crazy!
+
+![Example](https://github.com/mdechatech/CharTweener/blob/master/Content/example_full.gif)
