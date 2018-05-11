@@ -49,4 +49,4 @@ private void Start()
 
 ![Example](https://github.com/mdechatech/CharTweener/blob/master/Content/example_full.gif)
 
-[script](https://github.com/mdechatech/CharTweener/blob/master/Assets/CharTween/Examples/CharTweenExampleSimple.cs)
+[script](https://github.com/mdechatech/CharTweener/blob/master/Assets/CharTween/Examples/CharTweenExampleFull.cs)
