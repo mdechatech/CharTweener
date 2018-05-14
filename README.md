@@ -37,7 +37,7 @@ private void Start()
 - If you tween a character at an index that doesn't exist, the tween still happens. For example, you could oscillate the first 100 characters of an empty input field and the animation will happen as the user types in characters. 
 
 #### Limitations
-- Large performance overhead; may not be suitable on low-end mobile devices or very long text.
+- Performance overhead; my laptop dips below 60FPS when tweening 3000 characters.
 - Doesn't work with per-material properties such as Outline, Glow, Underlay.
 - **Only works once Start is called; you cannot tween characters in the same frame that the TextMeshPro component is enabled for the first time!**
 
