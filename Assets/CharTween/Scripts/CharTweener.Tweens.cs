@@ -223,5 +223,6 @@ namespace CharTween
         {
             return MonitorTransformTween(GetProxyTransform(charIndex).DOBlendableScaleBy(byValue, duration));
         }
+
     }
 }

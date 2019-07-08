@@ -18,6 +18,10 @@ namespace CharTween
 
         }
 
+        public override void SetFrom(TweenerCore<VertexGradient, VertexGradient, NoOptions> t, VertexGradient fromValue, bool setImmediately)
+        {
+            throw new System.NotImplementedException();
+        }
         public override void SetFrom(TweenerCore<VertexGradient, VertexGradient, NoOptions> t, bool isRelative)
         {
             var prevEndVal = t.endValue;
@@ -81,5 +85,6 @@ namespace CharTween
                 left.bottomLeft * right,
                 left.bottomRight * right);
         }
+
     } // Class
 } // Namespace

@@ -20,5 +20,17 @@ namespace CharTween
             modifier.Initialize();
             return modifier;
         }
+
+        public static CharTweenerUGUI GetCharTweenerUGUI(this TextMeshProUGUI text)
+        {
+            if (CharModifiers.ContainsKey(text))
+                return CharModifiers[text] as CharTweenerUGUI;
+
+            var modifier = CharModifiers[text] = text.gameObject.AddComponent<CharTweenerUGUI>();
+            modifier.Text = text;
+            modifier.Initialize();
+            return modifier as CharTweenerUGUI;
+        }
+
     }
 }
