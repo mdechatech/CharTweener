@@ -10,16 +10,18 @@ namespace CharTween
         public Tweener DOCircle(int charIndex, float radius, float duration, int pathPoints = 8, PathType pathType = PathType.CatmullRom,
             PathMode pathMode = PathMode.Full3D, int resolution = 10, Color? gizmoColor = null)
         {
-            var tweenPath = new Vector3[pathPoints + 1];
+            var tweenPath = new Vector3[pathPoints];
             for (var i = 0; i < tweenPath.Length; ++i)
             {
                 var theta = Mathf.Lerp(0, 2 * Mathf.PI, i / (float)(tweenPath.Length - 1));
-                tweenPath[i] = new Vector3(radius*Mathf.Cos(theta), radius*Mathf.Sin(theta), 0);
+                tweenPath[i] = new Vector3(radius * Mathf.Cos(theta), radius * Mathf.Sin(theta), 0);
             }
 
-            tweenPath[tweenPath.Length - 1] = new Vector3(radius, 0, 0);
+            //The first point of the path is the transform itself
+            GetProxyTransform(charIndex).localPosition = tweenPath[0];
+
             SetPositionOffset(charIndex, tweenPath[0]);
-            return DOPath(charIndex, tweenPath, duration, pathType, pathMode, resolution, gizmoColor);
+            return DOLocalPath(charIndex, tweenPath, duration, pathType, pathMode, resolution, gizmoColor, true);
         }
 
         // Color tweens
@@ -186,15 +188,15 @@ namespace CharTween
         }
 
         public Tweener DOPath(int charIndex, Vector3[] path, float duration, PathType pathType = PathType.Linear,
-            PathMode pathMode = PathMode.Full3D, int resolution = 10, Color? gizmoColor = null)
+            PathMode pathMode = PathMode.Sidescroller2D, int resolution = 10, Color? gizmoColor = null, bool closePath = false)
         {
-            return MonitorTransformTween(GetProxyTransform(charIndex).DOPath(path, duration, pathType, pathMode, resolution, gizmoColor));
+            return MonitorTransformTween(GetProxyTransform(charIndex).DOPath(path, duration, pathType, pathMode, resolution, gizmoColor).SetOptions(closePath));
         }
 
         public Tweener DOLocalPath(int charIndex, Vector3[] path, float duration, PathType pathType = PathType.Linear,
-            PathMode pathMode = PathMode.Full3D, int resolution = 10, Color? gizmoColor = null)
+            PathMode pathMode = PathMode.Full3D, int resolution = 10, Color? gizmoColor = null, bool closePath = false)
         {
-            return MonitorTransformTween(GetProxyTransform(charIndex).DOLocalPath(path, duration, pathType, pathMode, resolution, gizmoColor));
+            return MonitorTransformTween(GetProxyTransform(charIndex).DOLocalPath(path, duration, pathType, pathMode, resolution, gizmoColor).SetOptions(closePath));
         }
 
         public Tweener DOBlendableMoveBy(int charIndex, Vector3 byValue, float duration, bool snapping = false)

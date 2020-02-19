@@ -10,6 +10,15 @@ namespace CharTween.Examples
         public TMP_Text Target;
         private CharTweener _tweener;
 
+        [Header("Tween 1")]
+        public float radius = 1;
+        [Header("Tween 2")]
+        public float strenght = 1;
+        public int vibrato = 1;
+        public float randomness = 1;
+        [Header("Tween 3")]
+        public float height = 1;
+
         public void Start()
         {
             _tweener = Target.GetCharTweener();
@@ -24,8 +33,8 @@ namespace CharTween.Examples
         {
             for (var i = start; i <= end; ++i)
             {
-                var timeOffset = Mathf.Lerp(0, 1, (i - start) / (float) (end - start + 1));
-                var circleTween = _tweener.DOCircle(i, 0.05f, 0.5f)
+                var timeOffset = Mathf.Lerp(0, 1, (i - start) / (float)(end - start + 1));
+                var circleTween = _tweener.DOCircle(i, radius, 0.5f)
                     .SetEase(Ease.Linear)
                     .SetLoops(-1, LoopType.Restart);
                 var colorTween = _tweener.DOColor(i, Color.yellow, 0.5f)
@@ -41,7 +50,7 @@ namespace CharTween.Examples
             for (var i = start; i <= end; ++i)
             {
                 var timeOffset = Mathf.Lerp(0, 1, (i - start) / (float)(end - start + 1));
-                _tweener.DOShakePosition(i, 1, 0.05f, 50, 90, false, false)
+                _tweener.DOShakePosition(i, 1, strenght, vibrato, randomness, false, false)
                     .SetLoops(-1, LoopType.Restart);
                 var colorTween = _tweener.DOColor(i, UnityEngine.Random.ColorHSV(0, 1, 1, 1, 1, 1),
                         UnityEngine.Random.Range(0.1f, 0.5f))
@@ -59,7 +68,7 @@ namespace CharTween.Examples
             {
                 var timeOffset = Mathf.Lerp(0, 1, (i - start) / (float)(end - start + 1));
                 var charSequence = DOTween.Sequence();
-                charSequence.Append(_tweener.DOLocalMoveY(i, 0.5f, 0.5f).SetEase(Ease.InOutCubic))
+                charSequence.Append(_tweener.DOLocalMoveY(i, height, 0.5f).SetEase(Ease.InOutCubic))
                     .Join(_tweener.DOFade(i, 0, 0.5f).From())
                     .Join(_tweener.DOScale(i, 0, 0.5f).From().SetEase(Ease.OutBack, 5))
                     .Append(_tweener.DOLocalMoveY(i, 0, 0.5f).SetEase(Ease.OutBounce));
@@ -92,3 +101,4 @@ namespace CharTween.Examples
         }
     }
 }
+
