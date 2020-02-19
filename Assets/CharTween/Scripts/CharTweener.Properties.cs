@@ -46,7 +46,7 @@ namespace CharTween
 
         public void SetPositionOffset(int charIndex, Vector3 positionOffset)
         {
-            GetProxyTransform(charIndex).position = positionOffset;
+            GetProxyTransform(charIndex).localPosition = positionOffset;
             _updateVerticesPending = true;
         }
 

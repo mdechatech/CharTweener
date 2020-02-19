@@ -81,5 +81,10 @@ namespace CharTween
                 left.bottomLeft * right,
                 left.bottomRight * right);
         }
+
+        public override void SetFrom(TweenerCore<VertexGradient, VertexGradient, NoOptions> t, VertexGradient fromValue, bool setImmediately)
+        {
+            throw new System.NotImplementedException();
+        }
     } // Class
 } // Namespace

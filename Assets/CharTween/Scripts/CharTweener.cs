@@ -111,7 +111,9 @@ namespace CharTween
             if (proxyTransforms != null)
             {
                 foreach (var pair in proxyTransforms)
-                    Destroy(pair.Value.gameObject);
+                {
+                    if (pair.Value != null) Destroy(pair.Value.gameObject);
+                }
             }
 
             foreach (var tween in _activeColorTweens)
@@ -241,8 +243,9 @@ namespace CharTween
 
         private Transform CreateProxyTransform(int charIndex)
         {
-            var t = new GameObject().transform;
+            var t = new GameObject("CharTweener_Proxy_" + charIndex).transform;
             t.SetParent(Text.transform.parent, false);
+            t.localPosition = Vector3.zero;
 #if UNITY_EDITOR
             t.gameObject.hideFlags = HideFlags.HideAndDontSave;
 #endif
@@ -265,8 +268,7 @@ namespace CharTween
 
         private CharColor CreateProxyColor(int charIndex)
         {
-            var color = new CharColor
-            {
+            var color = new CharColor {
                 Color = Text.color,
                 VertexGradient = Text.colorGradient
             };
@@ -290,7 +292,7 @@ namespace CharTween
 
                 if (!charInfo.isVisible || !proxy)
                     continue;
-                
+
                 var materialIndex = charInfo.materialReferenceIndex;
                 var vertexIndex = charInfo.vertexIndex;
                 var sourceVertices = _meshCache[materialIndex].vertices;
