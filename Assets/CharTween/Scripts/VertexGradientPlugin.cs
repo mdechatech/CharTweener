@@ -18,7 +18,7 @@ namespace CharTween
 
         }
 
-        public override void SetFrom(TweenerCore<VertexGradient, VertexGradient, NoOptions> t, VertexGradient fromValue, bool setImmediately)
+        public override void SetFrom(TweenerCore<VertexGradient, VertexGradient, NoOptions> t, VertexGradient fromValue, bool setImmediately, bool setImmediately2)
         {
             throw new System.NotImplementedException();
         }
