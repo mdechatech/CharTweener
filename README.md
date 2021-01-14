@@ -41,6 +41,11 @@ private void Start()
 - Doesn't work with per-material properties such as Outline, Glow, Underlay.
 - **Only works once Start is called; you cannot tween characters in the same frame that the TextMeshPro component is enabled for the first time!**
 
+#### uGUI support
+
+- In case of uGUI, "CharTweenerUGUI" class is suitable. Please refer example scripts.
+- Rotation animation is available only in case that "Render Mode" in Canvas is "Screen Space - Camera".
+
 ## Installation
 - Have [DOTween](http://dotween.demigiant.com/index.php) and [TextMeshPro](https://assetstore.unity.com/packages/essentials/beta-projects/textmesh-pro-84126) installed in your project.
 - Get the .unitypackage from the [latest release](https://github.com/mdechatech/CharTweener/releases).

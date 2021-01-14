@@ -86,11 +86,11 @@ namespace CharTween
         private List<Tween> _activeVertexTweens;
         private List<Tween> _activeColorTweens;
 
-        private Dictionary<int, Transform> proxyTransforms;
+        protected Dictionary<int, Transform> proxyTransforms;
         private Dictionary<int, CharColor> proxyColors;
         private TMP_MeshInfo[] _meshCache;
 
-        private bool _updateVerticesPending;
+        protected bool _updateVerticesPending;
         private bool _updateColorsPending;
 
 #if UNITY_EDITOR
@@ -204,7 +204,7 @@ namespace CharTween
         }
 
         // Helper for method chaining
-        private T MonitorTransformTween<T>(T tween) where T : Tween
+        protected T MonitorTransformTween<T>(T tween) where T : Tween
         {
             _activeVertexTweens.Add(tween);
             return tween;
@@ -218,7 +218,7 @@ namespace CharTween
         }
 
         // Helper for method chaining
-        private Transform GetProxyTransform(int charIndex)
+        protected Transform GetProxyTransform(int charIndex)
         {
             // The modifier works by creating a proxy transform for each character in the text
 
@@ -239,7 +239,7 @@ namespace CharTween
             return proxy;
         }
 
-        private Transform CreateProxyTransform(int charIndex)
+        protected virtual Transform CreateProxyTransform(int charIndex)
         {
             var t = new GameObject().transform;
             t.SetParent(Text.transform.parent, false);
