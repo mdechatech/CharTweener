@@ -12,14 +12,506 @@ namespace CharTween
     [AddComponentMenu("")]
     public partial class CharTweener : MonoBehaviour
     {
-        private class CharColor
+        /// <summary>
+        /// The target text mesh.
+        /// </summary>
+        public TMP_Text Text { get; set; }
+
+        /// <summary>
+        /// Number of characters in the text mesh.
+        /// </summary>
+        public int CharacterCount { get { return characterCount; } }
+
+        /// <summary>
+        /// Interval between updates to the text mesh. If zero, the text mesh updates every frame.
+        /// </summary>
+        public float VisualUpdateInterval { get { return visualUpdateInterval; }}
+
+        // Maintain both dict and list for both fast lookup (when getting/setting properties)
+        // and fast iteration (when applying tweens)
+        private Dictionary<int, ProxyColor> proxyColorDict;
+        private List<ProxyColor> proxyColorList;
+        private Dictionary<int, ProxyTransform> proxyTransformDict;
+        private List<ProxyTransform> proxyTransformList;
+
+        private Transform proxyTransformParent;
+        private int characterCount;
+        private bool transformTweensActive;
+        private bool transformsChangedByProperties;
+        private bool colorTweensActive;
+        private bool colorsChangedByProperties;
+        private float tweenDisposeTimer;
+        private string lastValue;
+
+        private float visualUpdateInterval;
+        private float visualUpdateTimer;
+
+        /// <summary>
+        /// Must be called after creation. This is handled automatically when calling 
+        /// <see cref="CharTweenerUtility.GetCharTweener"/>.
+        /// </summary>
+        public void Initialize(TMP_Text text)
         {
+            Text = text;
+            Text.ForceMeshUpdate(true);
+            characterCount = text.textInfo.characterCount;
+            lastValue = Text.text;
+            TMPro_EventManager.TEXT_CHANGED_EVENT.Add(OnTextChanged);
+        }
+
+        /// <summary>
+        /// Makes it so that the text mesh is only updated between the given update interval.
+        /// <para>For example, if the update interval is 0.1 then the text mesh will visually update 10 times per second.</para>
+        /// <para>The default value is zero, which means the text mesh visually updates every frame.</para>
+        /// </summary>
+        /// <param name="updateInterval">Update interval in seconds. Set to zero to update every frame.</param>
+        public void SetVisualUpdateInterval(float updateInterval)
+        {
+            this.visualUpdateInterval = updateInterval;
+        }
+
+        /// <summary>
+        /// Updates the text mesh with the current character changes from tweens and properties.
+        /// Called automatically on Update().
+        /// </summary>
+        public void UpdateCharProperties()
+        {
+            TMP_VertexDataUpdateFlags updateFlags = 0;
+            if (transformTweensActive || transformsChangedByProperties)
+            {
+                UpdateCharPositions();
+                updateFlags |= TMP_VertexDataUpdateFlags.Vertices;
+                transformsChangedByProperties = false;
+            }
+
+            if (colorTweensActive || colorsChangedByProperties)
+            {
+                UpdateCharColors();
+                updateFlags |= TMP_VertexDataUpdateFlags.Colors32;
+                colorsChangedByProperties = false;
+            }
+
+            if (updateFlags != 0)
+                Text.UpdateVertexData(updateFlags);
+        }
+
+        /// <summary>Completes all character tweens on the text mesh</summary>
+        /// <param name="withCallbacks">For Sequences only: if TRUE also internal Sequence callbacks will be fired,
+        /// otherwise they will be ignored</param>
+        public void CompleteAll(bool withCallbacks = false)
+        {
+            if (proxyTransformList != null)
+            {
+                for (var i = 0; i < proxyTransformList.Count; i++)
+                {
+                    ProxyTransform proxy = proxyTransformList[i];
+                    for (int j = 0; j < proxy.Tweens.Count; j++)
+                        proxy.Tweens[j].Complete(withCallbacks);
+                    proxy.Tweens.Clear();
+                }
+            }
+
+            if (proxyColorList != null)
+            {
+                for (var i = 0; i < proxyColorList.Count; i++)
+                {
+                    ProxyColor proxy = proxyColorList[i];
+                    for (int j = 0; j < proxy.Tweens.Count; j++)
+                        proxy.Tweens[j].Complete(withCallbacks);
+                    proxy.Tweens.Clear();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Completes all tweens on the character in the text mesh
+        /// </summary>
+        /// <param name="charIndex">Character index</param>
+        /// <param name="withCallbacks">For Sequences only: if TRUE also internal Sequence callbacks will be fired,
+        /// otherwise they will be ignored</param>
+        public void CompleteAll(int charIndex, bool withCallbacks = false)
+        {
+            ProxyColor proxyColor;
+            if (proxyColorDict != null && proxyColorDict.TryGetValue(charIndex, out proxyColor))
+                proxyColor.CompleteAll(withCallbacks);
+
+            ProxyTransform proxyTransform;
+            if (proxyTransformDict != null && proxyTransformDict.TryGetValue(charIndex, out proxyTransform))
+                proxyTransform.CompleteAll(withCallbacks);
+        }
+
+        /// <summary>Kills all character tweens on the text mesh</summary>
+        /// <param name="complete">If TRUE completes the tweens before killing them</param>
+        public void KillAll(bool complete = false)
+        {
+            if (proxyTransformList != null)
+            {
+                for (var i = 0; i < proxyTransformList.Count; i++)
+                    proxyTransformList[i].KillAll(complete);
+            }
+
+            if (proxyColorList != null)
+            {
+                for (var i = 0; i < proxyColorList.Count; i++)
+                    proxyColorList[i].KillAll(complete);
+            }
+        }
+
+        /// <summary>
+        /// Kills all tweens on the character in the text mesh
+        /// </summary>
+        /// <param name="charIndex">Character index</param>
+        /// <param name="withCallbacks">For Sequences only: if TRUE also internal Sequence callbacks will be fired,
+        /// otherwise they will be ignored</param>
+        public void KillAll(int charIndex, bool complete = false)
+        {
+            ProxyColor proxyColor;
+            if (proxyColorDict != null && proxyColorDict.TryGetValue(charIndex, out proxyColor))
+                proxyColor.KillAll(complete);
+
+            ProxyTransform proxyTransform;
+            if (proxyTransformDict != null && proxyTransformDict.TryGetValue(charIndex, out proxyTransform))
+                proxyTransform.KillAll(complete);
+        }
+
+        /// <summary>
+        /// Cleans up tweens that are not active. 
+        /// </summary>
+        public void DisposeInactiveTweens()
+        {
+            transformTweensActive = false;
+            if (proxyTransformList != null)
+            {
+                for (var i = proxyTransformList.Count - 1; i >= 0; i--)
+                {
+                    ProxyTransform proxy = proxyTransformList[i];
+                    proxy.DisposeFinishedTweens();
+                    if (proxy.Tweens.Count > 0)
+                        transformTweensActive = true;
+                }
+            }
+
+            colorTweensActive = false;
+            if (proxyColorList != null)
+            {
+                for (var i = proxyColorList.Count - 1; i >= 0; i--)
+                {
+                    ProxyColor proxy = proxyColorList[i];
+                    proxy.DisposeFinishedTweens();
+                    if (proxy.Tweens.Count > 0)
+                        colorTweensActive = true;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Same as <see cref="UpdateCharProperties"/>, from old CharTween version
+        /// </summary>
+        public void ApplyChanges()
+        {
+            UpdateCharProperties();
+        }
+
+        private void OnTextChanged(Object changedText)
+        {
+            if (!Text)
+            {
+                TMPro_EventManager.TEXT_CHANGED_EVENT.Remove(OnTextChanged);
+                return;
+            }
+
+            if (changedText == Text)
+            {
+                characterCount = Text.textInfo.characterCount;
+                if (lastValue != Text.text)
+                {
+                    UpdateStartPositions();
+                    lastValue = Text.text;
+                }
+
+                UpdateCharProperties();
+            }
+        }
+
+        private void NotifyActiveTransformTween()
+        {
+            transformTweensActive = true;
+        }
+
+        private void NotifyActiveColorTween()
+        {
+            colorTweensActive = true;
+        }
+
+        void Awake()
+        {
+            proxyTransformParent = new GameObject("Proxy Transforms").transform;
+            proxyTransformParent.SetParent(transform);
+            proxyTransformParent.localPosition = Vector3.zero;
+        }
+
+        void Update()
+        {
+            if (!Text && gameObject)
+            {
+                Destroy(this);
+                return;
+            }
+
+            if (!Text.enabled)
+                return;
+
+            tweenDisposeTimer += Time.deltaTime;
+            if (tweenDisposeTimer >= 1)
+            {
+                tweenDisposeTimer = 0;
+                DisposeInactiveTweens();
+            }
+
+            if (visualUpdateInterval > 0)
+            {
+                visualUpdateTimer += Time.deltaTime;
+                if (visualUpdateTimer >= visualUpdateInterval)
+                {
+                    visualUpdateTimer = 0;
+                    UpdateCharProperties();
+                }
+            }
+            else
+            {
+                UpdateCharProperties();
+            }
+        }
+
+        void OnDestroy()
+        {
+            TMPro_EventManager.TEXT_CHANGED_EVENT.Remove(OnTextChanged);
+            Destroy(proxyTransformParent.gameObject);
+        }
+
+        private void UpdateStartPositions()
+        {
+            if (proxyTransformDict == null)
+                return;
+
+            TMP_CharacterInfo[] charInfo = Text.textInfo.characterInfo;
+            int oldLength = lastValue.Length;
+            int newLength = Text.text.Length;
+
+            foreach (var pair in proxyTransformDict)
+            {
+                int charIndex = pair.Key;
+                ProxyTransform proxy = pair.Value;
+
+                if (charIndex >= oldLength)
+                {
+                    // Character was not present in old text and is present in new text
+                    if (charIndex < newLength)
+                        proxy.AssignCharInfo(charInfo[pair.Key]);
+                }
+                else // pair.Key < oldLength
+                {
+                    // Character was present in old text and is not present in new text
+                    if (charIndex >= newLength)
+                        proxy.AssignCharIndex(charIndex);
+                    else
+                        proxy.AssignCharInfo(charInfo[pair.Key]);
+                }
+            }
+        }
+
+        // Returns null if proxy does not exist
+        private ProxyTransform TryGetProxyTransform(int charIndex)
+        {
+            if (proxyTransformDict == null)
+                return null;
+
+            ProxyTransform proxyTransform;
+            return proxyTransformDict.TryGetValue(charIndex, out proxyTransform) ? proxyTransform : null;
+        }
+
+        // Will create proxy if does not exist
+        private ProxyTransform GetProxyTransform(int charIndex)
+        {
+            if (proxyTransformDict == null)
+            {
+                proxyTransformDict = new Dictionary<int, ProxyTransform>(CharacterCount);
+                proxyTransformList = new List<ProxyTransform>(CharacterCount);
+            }
+
+            ProxyTransform proxy;
+            if (!proxyTransformDict.TryGetValue(charIndex, out proxy))
+            {
+                Transform t = new GameObject(charIndex.ToString()).transform;
+                t.SetParent(proxyTransformParent);
+
+                proxy = charIndex >= CharacterCount
+                    ? new ProxyTransform(t, proxyTransformParent, charIndex)
+                    : new ProxyTransform(t, proxyTransformParent, Text.textInfo.characterInfo[charIndex]);
+                proxyTransformDict.Add(charIndex, proxy);
+                proxyTransformList.Add(proxy);
+            }
+
+            return proxy;
+        }
+
+        // Returns null if proxy does not exist
+        private ProxyColor TryGetProxyColor(int charIndex)
+        {
+            if (proxyColorDict == null)
+                return null;
+
+            ProxyColor proxyColor;
+            return proxyColorDict.TryGetValue(charIndex, out proxyColor) ? proxyColor : null;
+        }
+
+        // Will create proxy if does not exist
+        private ProxyColor GetProxyColor(int charIndex)
+        {
+            if (proxyColorDict == null)
+            {
+                proxyColorDict = new Dictionary<int, ProxyColor>(CharacterCount);
+                proxyColorList = new List<ProxyColor>(CharacterCount);
+            }
+
+            ProxyColor proxy;
+            if (!proxyColorDict.TryGetValue(charIndex, out proxy))
+            {
+                proxy = new ProxyColor(Text.color, Text.colorGradient, Text.enableVertexGradient, charIndex);
+                proxyColorDict.Add(charIndex, proxy);
+                proxyColorList.Add(proxy);
+                return proxy;
+            }
+
+            return proxy;
+        }
+
+        private void UpdateCharPositions()
+        {
+            // If no transform tweens have been created then the list of proxies will not exist
+            if (proxyTransformList == null)
+                return;
+
+            for (var i = proxyTransformList.Count - 1; i >= 0; i--)
+            {
+                ProxyTransform proxy = proxyTransformList[i];
+                if (proxy.CharIndex >= characterCount)
+                    continue;
+
+                int charIndex = proxy.CharIndex;
+                TMP_CharacterInfo charInfo = Text.textInfo.characterInfo[charIndex];
+
+                if (!charInfo.isVisible || !proxy.Target || !proxy.Target.hasChanged)
+                    continue;
+
+                int materialIndex = charInfo.materialReferenceIndex;
+                int vertexIndex = charInfo.vertexIndex;
+
+                Vector3 origin = (charInfo.topLeft + charInfo.bottomRight) * 0.5f;
+
+                Vector3[] destinationVertices = Text.textInfo.meshInfo[materialIndex].vertices;
+                Matrix4x4 matrix = Matrix4x4.TRS(proxy.OffsetPosition, proxy.Target.localRotation, proxy.Target.localScale);
+
+                destinationVertices[vertexIndex + 1] = matrix.MultiplyPoint3x4(charInfo.topLeft - origin) + origin;
+                destinationVertices[vertexIndex + 2] = matrix.MultiplyPoint3x4(charInfo.topRight - origin) + origin;
+                destinationVertices[vertexIndex + 0] = matrix.MultiplyPoint3x4(charInfo.bottomLeft - origin) + origin;
+                destinationVertices[vertexIndex + 3] = matrix.MultiplyPoint3x4(charInfo.bottomRight - origin) + origin;
+            }
+        }
+
+        private void UpdateCharColors()
+        {
+            // If no color tweens have been created then the list of proxies will not exist
+            if (proxyColorList == null)
+                return;
+
+            for (var i = proxyColorList.Count - 1; i >= 0; i--)
+            {
+                ProxyColor proxy = proxyColorList[i];
+                if (proxy.CharIndex >= characterCount)
+                    continue;
+
+                TMP_CharacterInfo charInfo = Text.textInfo.characterInfo[proxy.CharIndex];
+                if (!charInfo.isVisible || !proxy.IsModified)
+                    continue;
+
+                int materialIndex = charInfo.materialReferenceIndex;
+                int vertexIndex = charInfo.vertexIndex;
+
+                Color32[] destinationColors = Text.textInfo.meshInfo[materialIndex].colors32;
+                destinationColors[vertexIndex + 1] = proxy.ColorGradient.topLeft;
+                destinationColors[vertexIndex + 2] = proxy.ColorGradient.topRight;
+                destinationColors[vertexIndex + 0] = proxy.ColorGradient.bottomLeft;
+                destinationColors[vertexIndex + 3] = proxy.ColorGradient.bottomRight;
+            }
+        }
+
+        private static Color WithAlpha(Color color, float alpha)
+        {
+            return new Color(color.r, color.g, color.b, alpha);
+        }
+
+        // Stores color data for a character. CharTweener updates vertex colors in the text mesh using this data.
+        private class ProxyColor
+        {
+            // This handles DOColorGradient
             private static readonly VertexGradientPlugin VertexGradientPlugin = new VertexGradientPlugin();
 
             public bool IsModified;
-            public VertexGradient VertexGradient;
 
+            public VertexGradient ColorGradient; // Setting this via field will not change dirty flag
+            public bool UseColorGradient; // Setting this via field will not change dirty flag
+            public int CharIndex;
             public Color Color { get { return GetColor(); } set { SetColor(value); } }
+            public float Alpha { get { return GetAlpha(); } set { SetAlpha(value); } }
+
+            public List<Tween> Tweens;
+
+            public ProxyColor(Color color, VertexGradient colorGradient, bool useColorGradient, int charIndex)
+            {
+                Tweens = new List<Tween>();
+                UseColorGradient = useColorGradient;
+                if (UseColorGradient)
+                    ColorGradient = colorGradient;
+                else
+                    Color = color;
+                CharIndex = charIndex;
+            }
+
+            public void CompleteAll(bool withCallbacks = false)
+            {
+                for (var i = 0; i < Tweens.Count; i++)
+                {
+                    Tweens[i].Complete(withCallbacks);
+                }
+            }
+
+            public void KillAll(bool complete = false)
+            {
+                for (var i = 0; i < Tweens.Count; i++)
+                {
+                    Tweens[i].Kill(complete);
+                }
+            }
+
+            public T AddTween<T>(T tween) where T : Tween
+            {
+                Tweens.Add(tween);
+                return tween;
+            }
+
+            public void DisposeFinishedTweens()
+            {
+                if (Tweens.Count == 0)
+                    return;
+
+                for (int i = Tweens.Count - 1; i >= 0; i--)
+                {
+                    Tween tween = Tweens[i];
+                    if (!tween.active)
+                        Tweens.RemoveAt(i);
+                }
+            }
 
             public Tweener DOFade(float endValue, float duration)
             {
@@ -33,320 +525,228 @@ namespace CharTween
                 return DOTween.To(GetColor, SetColor, endValue, duration);
             }
 
-            public Tweener DOVertexGradient(VertexGradient endValue, float duration)
+            public Tweener DOColorGradient(VertexGradient endValue, float duration)
             {
                 IsModified = true;
                 return DOTween.To(VertexGradientPlugin,
-                    GetVertexGradient, SetVertexGradient,
+                    GetColorGradient, SetColorGradient,
                     endValue, duration);
             }
 
-            // Accessors passed in as lambdas to avoid allocation
-            private Color GetColor()
+            public Color GetColor()
             {
-                return VertexGradient.topLeft;
+                return ColorGradient.topLeft;
             }
 
-            private void SetColor(Color value)
+            public void SetColor(Color value)
             {
                 IsModified = true;
-                Color32 color32 = value;
-                VertexGradient.bottomLeft = color32;
-                VertexGradient.topLeft = color32;
-                VertexGradient.bottomRight = color32;
-                VertexGradient.topRight = color32;
+                UseColorGradient = false;
+                ColorGradient.bottomLeft = value;
+                ColorGradient.topLeft = value;
+                ColorGradient.bottomRight = value;
+                ColorGradient.topRight = value;
             }
 
-            private float GetAlpha()
+            public float GetAlpha()
             {
-                return VertexGradient.topLeft.a;
+                return ColorGradient.topLeft.a;
             }
 
-            private void SetAlpha(float value)
+            public void SetAlpha(float value)
             {
                 IsModified = true;
-                VertexGradient.bottomLeft = WithAlpha(VertexGradient.bottomLeft, value);
-                VertexGradient.bottomRight = WithAlpha(VertexGradient.bottomRight, value);
-                VertexGradient.topLeft = WithAlpha(VertexGradient.topLeft, value);
-                VertexGradient.topRight = WithAlpha(VertexGradient.topRight, value);
+                ColorGradient.bottomLeft = WithAlpha(ColorGradient.bottomLeft, value);
+                ColorGradient.bottomRight = WithAlpha(ColorGradient.bottomRight, value);
+                ColorGradient.topLeft = WithAlpha(ColorGradient.topLeft, value);
+                ColorGradient.topRight = WithAlpha(ColorGradient.topRight, value);
             }
 
-            private VertexGradient GetVertexGradient()
+            public VertexGradient GetColorGradient()
             {
-                return VertexGradient;
+                return ColorGradient;
             }
 
-            private void SetVertexGradient(VertexGradient value)
+            public void SetColorGradient(VertexGradient value)
             {
                 IsModified = true;
-                VertexGradient = value;
+                UseColorGradient = true;
+                ColorGradient = value;
             }
         }
 
-        private List<Tween> _activeVertexTweens;
-        private List<Tween> _activeColorTweens;
-
-        private Dictionary<int, Transform> proxyTransforms;
-        private Dictionary<int, CharColor> proxyColors;
-        private TMP_MeshInfo[] _meshCache;
-
-        private bool _updateVerticesPending;
-        private bool _updateColorsPending;
-
-#if UNITY_EDITOR
-        private void Awake()
+        // Stores transform data for a character. CharTweener updates vertex positions in the text mesh using this data.
+        private class ProxyTransform
         {
-            hideFlags = HideFlags.HideInInspector;
-        }
-#endif
-        private void Update()
-        {
-            ApplyChanges();
-        }
+            public Transform Target { get { return target; } }
+            public int CharIndex { get { return charIndex; } }
+            public Vector3 LocalStartPosition { get { return localStartPosition; } }
+            public Vector3 StartPosition { get { return parent.TransformPoint(LocalStartPosition); } }
+            public Vector3 OffsetPosition { get { return target.localPosition; } set { target.localPosition = value; } }
 
-        private void OnDestroy()
-        {
-            TMPro_EventManager.TEXT_CHANGED_EVENT.Remove(OnTextChanged);
-
-            if (proxyTransforms != null)
+            public Vector3 LocalPosition
             {
-                foreach (var pair in proxyTransforms)
-                    Destroy(pair.Value.gameObject);
+                get { return target.localPosition + localStartPosition; }
+                set { target.localPosition = value - localStartPosition; }
             }
 
-            foreach (var tween in _activeColorTweens)
-                tween.Kill();
-
-            foreach (var tween in _activeVertexTweens)
-                tween.Kill();
-        }
-
-        public TMP_Text Text { get; set; }
-
-        public int CharacterCount { get { return Text ? Text.textInfo.characterCount : 0; } }
-
-        /// <summary>
-        /// Must be called after <see cref="Text"/> is assigned. This is handled automatically when calling 
-        /// <see cref="CharTweenerUtility.GetCharTweener"/>.
-        /// </summary>
-        public void Initialize()
-        {
-            Text.ForceMeshUpdate(true);
-            RefreshCache();
-
-            _activeVertexTweens = new List<Tween>();
-            _activeColorTweens = new List<Tween>();
-
-            TMPro_EventManager.TEXT_CHANGED_EVENT.Add(OnTextChanged);
-        }
-
-        /// <summary>
-        /// This happens automatically on Update().
-        /// </summary>
-        public void ApplyChanges()
-        {
-            if (!Text && gameObject)
+            public Vector3 Position
             {
-                Destroy(this);
-                return;
+                get { return target.position + LocalStartPosition; }
+                set { target.position = value - LocalStartPosition; }
             }
 
-            if (!Text.enabled)
-                return;
+            public List<Tween> Tweens;
+            private Transform target;
+            private Transform parent;
+            private int charIndex;
+            private Vector3 localStartPosition;
 
-            if (_updateVerticesPending || _activeVertexTweens.Count > 0)
+            public ProxyTransform(Transform target, Transform parent, int charIndex)
             {
-                UpdateVertexDataFromProxies();
-                Text.UpdateVertexData(TMP_VertexDataUpdateFlags.Vertices);
-
-                _updateVerticesPending = false;
+                Tweens = new List<Tween>();
+                this.target = target;
+                this.parent = parent;
+                AssignCharIndex(charIndex);
+                Target.localPosition = Vector3.zero;
             }
 
-            if (_updateColorsPending || _activeColorTweens.Count > 0)
+            public ProxyTransform(Transform target, Transform parent, TMP_CharacterInfo charInfo)
             {
-                UpdateColorFromProxies();
-                Text.UpdateVertexData(TMP_VertexDataUpdateFlags.Colors32);
-
-                _updateColorsPending = false;
+                Tweens = new List<Tween>();
+                this.target = target;
+                this.parent = parent;
+                AssignCharInfo(charInfo);
+                Target.localPosition = Vector3.zero;
             }
 
-            for (var i = _activeVertexTweens.Count - 1; i >= 0; --i)
+            public T AddTween<T>(T tween) where T : Tween
             {
-                if (!_activeVertexTweens[i].IsActive())
-                    _activeVertexTweens.RemoveAt(i);
+                Tweens.Add(tween);
+                return tween;
             }
 
-            for (var i = _activeColorTweens.Count - 1; i >= 0; --i)
+            public void CompleteAll(bool withCallbacks = false)
             {
-                if (!_activeColorTweens[i].IsActive())
-                    _activeColorTweens.RemoveAt(i);
-            }
-        }
-
-        private void RefreshCache()
-        {
-            _meshCache = Text.textInfo.CopyMeshInfoVertexData();
-        }
-
-        private void OnTextChanged(Object text)
-        {
-            if (!Text)
-            {
-                TMPro_EventManager.TEXT_CHANGED_EVENT.Remove(OnTextChanged);
-                return;
+                for (var i = 0; i < Tweens.Count; i++)
+                    Tweens[i].Complete(withCallbacks);
+                Tweens.Clear();
             }
 
-            if (text == Text)
+            public void KillAll(bool complete = false)
             {
-                RefreshCache();
-                ApplyChanges();
+                for (var i = 0; i < Tweens.Count; i++)
+                    Tweens[i].Kill(complete);
+                Tweens.Clear();
             }
-        }
 
-        // Helper for method chaining
-        private T MonitorTransformTween<T>(T tween) where T : Tween
-        {
-            _activeVertexTweens.Add(tween);
-            return tween;
-        }
-
-        // Helper for method chaining
-        private T MonitorColorTween<T>(T tween) where T : Tween
-        {
-            _activeColorTweens.Add(tween);
-            return tween;
-        }
-
-        // Helper for method chaining
-        private Transform GetProxyTransform(int charIndex)
-        {
-            // The modifier works by creating a proxy transform for each character in the text
-
-            // Modifications are applied to the proxies rather than the characters themselves
-            // On every update, the modifier copies the transform matrix on each proxy and
-            // applies it to the corresponding character
-
-            // This is done because DOTween exposes many additional methods for transforms that are not
-            // available for plain Vector3s - for example, the DORotate method
-
-            if (proxyTransforms == null)
-                proxyTransforms = new Dictionary<int, Transform>(Text.textInfo.characterCount);
-
-            Transform proxy;
-            if (!proxyTransforms.TryGetValue(charIndex, out proxy))
-                proxy = CreateProxyTransform(charIndex);
-
-            return proxy;
-        }
-
-        private Transform CreateProxyTransform(int charIndex)
-        {
-            var t = new GameObject().transform;
-            t.SetParent(Text.transform.parent, false);
-#if UNITY_EDITOR
-            t.gameObject.hideFlags = HideFlags.HideAndDontSave;
-#endif
-            proxyTransforms.Add(charIndex, t);
-            return t;
-        }
-
-        private CharColor GetProxyColor(int charIndex)
-        {
-            if (proxyColors == null)
-                proxyColors = new Dictionary<int, CharColor>(Text.textInfo.characterCount);
-
-            CharColor color;
-            if (!proxyColors.TryGetValue(charIndex, out color))
-                color = CreateProxyColor(charIndex);
-
-            return color;
-        }
-
-
-        private CharColor CreateProxyColor(int charIndex)
-        {
-            var color = new CharColor
+            public void DisposeFinishedTweens()
             {
-                Color = Text.color,
-                VertexGradient = Text.colorGradient
-            };
+                if (Tweens.Count == 0)
+                    return;
 
-            proxyColors.Add(charIndex, color);
-            return color;
-        }
-
-        private void UpdateVertexDataFromProxies()
-        {
-            if (proxyTransforms == null)
-                return;
-
-            foreach (var entry in proxyTransforms)
-            {
-                if (entry.Key >= Text.textInfo.characterCount)
-                    continue;
-
-                var charInfo = Text.textInfo.characterInfo[entry.Key];
-                var proxy = entry.Value;
-
-                if (!charInfo.isVisible || !proxy)
-                    continue;
-                
-                var materialIndex = charInfo.materialReferenceIndex;
-                var vertexIndex = charInfo.vertexIndex;
-                var sourceVertices = _meshCache[materialIndex].vertices;
-
-                // Getting this from charInfo.vertex_TL, etc. yields the wrong values
-                var sourceTopLeft = sourceVertices[vertexIndex + 1];
-                var sourceTopRight = sourceVertices[vertexIndex + 2];
-                var sourceBottomLeft = sourceVertices[vertexIndex + 0];
-                var sourceBottomRight = sourceVertices[vertexIndex + 3];
-
-                var offset = (sourceTopLeft + sourceBottomRight) * 0.5f;
-
-                var destinationVertices = Text.textInfo.meshInfo[materialIndex].vertices;
-                var matrix = Matrix4x4.TRS(proxy.localPosition, proxy.localRotation, proxy.localScale);
-
-                var destinationTopLeft = matrix.MultiplyPoint3x4(sourceTopLeft - offset) + offset;
-                var destinationTopRight = matrix.MultiplyPoint3x4(sourceTopRight - offset) + offset;
-                var destinationBottomLeft = matrix.MultiplyPoint3x4(sourceBottomLeft - offset) + offset;
-                var destinationBottomRight = matrix.MultiplyPoint3x4(sourceBottomRight - offset) + offset;
-
-                destinationVertices[vertexIndex + 1] = destinationTopLeft;
-                destinationVertices[vertexIndex + 2] = destinationTopRight;
-                destinationVertices[vertexIndex + 0] = destinationBottomLeft;
-                destinationVertices[vertexIndex + 3] = destinationBottomRight;
+                for (int i = Tweens.Count - 1; i >= 0; i--)
+                {
+                    Tween tween = Tweens[i];
+                    if (!tween.active)
+                        Tweens.RemoveAt(i);
+                }
             }
-        }
 
-        private static Color WithAlpha(Color color, float alpha)
-        {
-            return new Color(color.r, color.g, color.b, alpha);
-        }
-
-        private void UpdateColorFromProxies()
-        {
-            if (proxyColors == null)
-                return;
-
-            foreach (var entry in proxyColors)
+            public void AssignCharInfo(TMP_CharacterInfo charInfo)
             {
-                if (entry.Key >= Text.textInfo.characterCount)
-                    continue;
+                charIndex = charInfo.index;
+                if (charInfo.isVisible)
+                {
+                    localStartPosition = new Vector3(
+                        (charInfo.topLeft.x + charInfo.bottomRight.x) * 0.5f,
+                        (charInfo.topLeft.y + charInfo.bottomRight.y) * 0.5f,
+                        (charInfo.topLeft.z + charInfo.bottomRight.z) * 0.5f
+                    );
+                }
+                else
+                {
+                    localStartPosition = Vector3.zero;
+                }
+            }
 
-                var charInfo = Text.textInfo.characterInfo[entry.Key];
-                var proxy = entry.Value;
+            public void AssignCharIndex(int charIndex)
+            {
+                this.charIndex = charIndex;
+                localStartPosition = Vector3.zero;
+            }
 
-                if (!charInfo.isVisible || !proxy.IsModified)
-                    continue;
+            public Tweener DOMove(Vector3 endValue, float duration, bool snapping = false)
+            {
+                return snapping
+                    ? DOTween.To(GetPosition, SetPositionAndSnap, endValue, duration).SetTarget(target)
+                    : DOTween.To(GetPosition, SetPosition, endValue, duration).SetTarget(target);
+            }
 
-                var materialIndex = charInfo.materialReferenceIndex;
-                var vertexIndex = charInfo.vertexIndex;
+            public Tweener DOMoveX(float endValue, float duration, bool snapping = false)
+            {
+                return snapping
+                    ? DOTween.ToAxis(GetPosition, SetPositionAndSnap, endValue, duration, AxisConstraint.X).SetTarget(target)
+                    : DOTween.ToAxis(GetPosition, SetPosition, endValue, duration, AxisConstraint.X).SetTarget(target);
+            }
 
-                var destinationColors = Text.textInfo.meshInfo[materialIndex].colors32;
-                destinationColors[vertexIndex + 1] = proxy.VertexGradient.topLeft;
-                destinationColors[vertexIndex + 2] = proxy.VertexGradient.topRight;
-                destinationColors[vertexIndex + 0] = proxy.VertexGradient.bottomLeft;
-                destinationColors[vertexIndex + 3] = proxy.VertexGradient.bottomRight;
+            public Tweener DOMoveY(float endValue, float duration, bool snapping = false)
+            {
+                return snapping
+                    ? DOTween.ToAxis(GetPosition, SetPositionAndSnap, endValue, duration, AxisConstraint.Y).SetTarget(target)
+                    : DOTween.ToAxis(GetPosition, SetPosition, endValue, duration, AxisConstraint.Y).SetTarget(target);
+            }
+
+            public Tweener DOMoveZ(float endValue, float duration, bool snapping = false)
+            {
+                return snapping
+                    ? DOTween.ToAxis(GetPosition, SetPositionAndSnap, endValue, duration, AxisConstraint.Z).SetTarget(target)
+                    : DOTween.ToAxis(GetPosition, SetPosition, endValue, duration, AxisConstraint.Z).SetTarget(target);
+            }
+
+            public Tweener DOLocalMove(Vector3 endValue, float duration, bool snapping = false)
+            {
+                return snapping
+                    ? DOTween.To(GetLocalPosition, SetLocalPositionAndSnap, endValue, duration).SetTarget(target)
+                    : DOTween.To(GetLocalPosition, SetLocalPosition, endValue, duration).SetTarget(target);
+            }
+
+            public Tweener DOLocalMoveX(float endValue, float duration, bool snapping = false)
+            {
+                return snapping
+                    ? DOTween.ToAxis(GetLocalPosition, SetLocalPositionAndSnap, endValue, duration, AxisConstraint.X).SetTarget(target)
+                    : DOTween.ToAxis(GetLocalPosition, SetLocalPosition, endValue, duration, AxisConstraint.X).SetTarget(target);
+            }
+
+            public Tweener DOLocalMoveY(float endValue, float duration, bool snapping = false)
+            {
+                return snapping
+                    ? DOTween.ToAxis(GetLocalPosition, SetLocalPositionAndSnap, endValue, duration, AxisConstraint.Y).SetTarget(target)
+                    : DOTween.ToAxis(GetLocalPosition, SetLocalPosition, endValue, duration, AxisConstraint.Y).SetTarget(target);
+            }
+
+            public Tweener DOLocalMoveZ(float endValue, float duration, bool snapping = false)
+            {
+                return snapping
+                    ? DOTween.ToAxis(GetLocalPosition, SetLocalPositionAndSnap, endValue, duration, AxisConstraint.Z).SetTarget(target)
+                    : DOTween.ToAxis(GetLocalPosition, SetLocalPosition, endValue, duration, AxisConstraint.Z).SetTarget(target);
+            }
+
+            // These getters and setters are for use with DOTween.To
+            public Vector3 GetLocalPosition() { return LocalPosition; }
+            public void SetLocalPosition(Vector3 value) { LocalPosition = value; }
+
+            public void SetLocalPositionAndSnap(Vector3 value)
+            {
+                LocalPosition = new Vector3(Mathf.Round(value.x), Mathf.Round(value.y), Mathf.Round(value.z));
+            }
+
+            public Vector3 GetPosition() { return Position; }
+            public void SetPosition(Vector3 value) { Position = value; }
+
+            public void SetPositionAndSnap(Vector3 value)
+            {
+                Position = new Vector3(Mathf.Round(value.x), Mathf.Round(value.y), Mathf.Round(value.z));
             }
         }
     }

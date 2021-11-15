@@ -3,13 +3,10 @@
 /[Oo]bj/
 /[Bb]uild/
 /[Bb]uilds/
-/Assets/AssetStoreTools*
 
-# 3rd party libraries
-/Assets/Demigiant/
-/Assets/Demigiant.meta
-/Assets/TextMesh Pro/
-/Assets/TextMesh Pro.meta
+# Everything in the project except package
+/Assets/*
+!/Assets/CharTween
 
 # Visual Studio 2015 cache directory
 /.vs/

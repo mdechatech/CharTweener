@@ -9,7 +9,7 @@ using TMPro;
 namespace CharTween
 {
     /// <summary>
-    /// Handles tweening of <see cref="VertexGradient"/>.
+    /// Handles tweening of <see cref="VertexGradient"/>. Is used by <see cref=""/>
     /// </summary>
     public class VertexGradientPlugin : ABSTweenPlugin<VertexGradient, VertexGradient, NoOptions>
     {
@@ -26,6 +26,12 @@ namespace CharTween
             t.startValue = prevEndVal;
             t.setter(t.startValue);
         }
+
+        // COMMENT this method if DOTween version is 1.2.320 or older
+        public override void SetFrom(TweenerCore<VertexGradient, VertexGradient, NoOptions> t, VertexGradient fromValue, bool setImmediately, bool isRelative) { SetFrom(t, isRelative); }
+
+        // UNCOMMENT this method if DOTween version is 1.2.235 to 1.2.320 
+        //public override void SetFrom(TweenerCore<VertexGradient, VertexGradient, NoOptions> t, VertexGradient fromValue, bool setImmediately) { SetFrom(t, false); }
 
         public override VertexGradient ConvertToStartValue(TweenerCore<VertexGradient, VertexGradient, NoOptions> t, VertexGradient value)
         {
@@ -81,5 +87,5 @@ namespace CharTween
                 left.bottomLeft * right,
                 left.bottomRight * right);
         }
-    } // Class
-} // Namespace
+    }
+}
