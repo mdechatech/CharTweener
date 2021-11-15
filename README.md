@@ -84,11 +84,5 @@ Applies to DOTween 1.2.320 (January 07, 2020) and older
         //public override void SetFrom(TweenerCore<VertexGradient, VertexGradient, NoOptions> t, VertexGradient fromValue, bool setImmediately) { SetFrom(t, false); }
 ```
 
-## Examples
-### GIFs
-- Click GIFs to see code
-- Find source scenes in Examples folder, scenes have the same name as the scripts linked in the GIFs
-- All examples run at 1024x768, try adjusting resolution if the examples look misaligned in Unity
-
 ## License
 MIT
