@@ -1,52 +1,94 @@
-# CharTweener
-Got [DOTween](http://dotween.demigiant.com/index.php)? Got [TextMeshPro](https://assetstore.unity.com/packages/essentials/beta-projects/textmesh-pro-84126)?
+# CharTweener - Animate characters in text
 
-Using CharTweener, you can do stuff like this...
 ![Example](https://github.com/mdechatech/CharTweener/blob/master/Content/example_simple.gif)
 
-Using code like this! (Full script [here](https://github.com/mdechatech/CharTweener/blob/master/Assets/CharTween/Examples/CharTweenExampleSimple.cs))
 ```c#
-private void Start()
+void Start()
 {
     // Set text
-    var text = GetComponent<TMP_Text>();
-    text.text = "DETERMINATION";
+    TMP_Text textMesh = GetComponent<TMP_Text>();
+    textMesh.text = "DETERMINATION";
 
-    var tweener = text.GetCharTweener();    
-    for (var i = 0; i < tweener.CharacterCount; ++i)
+    CharTweener tweener = textMesh.GetCharTweener();
+    for (int i = 0; i < tweener.CharacterCount; i++)
     {
         // Move characters in a circle
-        var circleTween = tweener.DOCircle(i, 0.05f, 0.5f)
-            .SetEase(Ease.Linear)
+        Tween circleTween = tweener.DOMoveCircle(i, 0.05f, 0.5f)
             .SetLoops(-1, LoopType.Restart);
 
-        // Oscillate character color between yellow and white
-        var colorTween = tweener.DOColor(i, Color.yellow, 0.5f)
+        // Fade character color between yellow and white
+        Tween colorTween = tweener.DOColor(i, Color.yellow, 0.5f)
             .SetLoops(-1, LoopType.Yoyo);
 
         // Offset animations based on character index in string
-        var timeOffset = Mathf.Lerp(0, 1, i / (float)(tweener.CharacterCount - 1));
+        float timeOffset = (float)i / tweener.CharacterCount;
         circleTween.fullPosition = timeOffset;
         colorTween.fullPosition = timeOffset;
     }
 }
 ```
-#### Features
-- Tween position, rotation, scale, and color. Includes the special transform extensions like DOPunch, DOShake
-- Controlled like normal tweens. Kill, SetDelay, SetLoops, etc. work. Sequences work.
-- If you tween a character at an index that doesn't exist, the tween still happens. For example, you could oscillate the first 100 characters of an empty input field and the animation will happen as the user types in characters. 
+Use DOTween tweens on TextMeshPro characters the same way you would on a game object:
+```c#
+transform.DOMove(Vector3.zero, 1) // Move the transform to (0,0,0) over 1 second
+// becomes...
+tweener.DOMove(2, Vector3.zero, 1); // Move the 3rd character in the text mesh to (0,0,0) over 1 second
+```
+You can also set properties on characters:
+```c#
+transform.localPosition = new Vector3(0,1,0) // Move the transform to (0,1,0) locally
+// becomes...
+tweener.SetOffsetPosition(2, new Vector3(0,1,0)); // Move the 3rd character in the text mesh to (0,1,0) above its original position
+```
 
-#### Limitations
-- Performance overhead; my laptop dips below 60FPS when tweening 3000 characters.
-- Doesn't work with per-material properties such as Outline, Glow, Underlay.
-- **Only works once Start is called; you cannot tween characters in the same frame that the TextMeshPro component is enabled for the first time!**
+# Features
+CharTween extends existing features for use on text:
+- Use `Transform` tweens on characters `(DOMove, DORotate, DOLookAt)`
+- Use `Transform` properties and methods on characters `(Get/SetPosition, Get/SetRotation, LookAt)`
+- Use `Color` and `VertexGradient` tweens on characters `(DOColor, DOFade, DOGradient)`
+- Use `Color` and `VertexGradient` properties on characters `(Get/SetColor, Get/SetAlpha, Get/SetColorGradient)`
+- Use `Tween` properties and methods on character tweens `(Pause, OnComplete, timeScale)`
 
-## Installation
-- Have [DOTween](http://dotween.demigiant.com/index.php) and [TextMeshPro](https://assetstore.unity.com/packages/essentials/beta-projects/textmesh-pro-84126) installed in your project.
-- Get the .unitypackage from the [latest release](https://github.com/mdechatech/CharTweener/releases).
-- Open and import, uncheck the Examples folder if needed.
-- Go crazy!
+CharTween also provides some extras:
+- Use extra tweens that aren't in DOTween `(DOMoveCircle, DODriftPosition/Rotation)`
+- Edit character position as offset from start position `(DOOffsetMove, GetStartPosition, Get/SetOffsetPosition)`
+- Tween "ahead of time". For example, run tweens on a `TMP_InputField` for characters that haven't been typed yet, and they will show up animated
+    - Does not work with `DOMove` or `DOLocalMove`. To tween position ahead of time, use `DOOffsetMove`. `DoShakePosition` and `DOPunchPosition` also work
 
-![Example](https://github.com/mdechatech/CharTweener/blob/master/Content/example_full.gif)
+## Limitations
+- **Cannot tween a text mesh before its `Awake()` has been called, must wait until `Start()` or later**
+- Material effects such as Outline, Glow, and Underlay cannot be changed per-character
+- Text mesh effects such as Underline, Strikethrough cannot be changed per-character
+- Performance overhead, creates one `Transform` per modified character.
 
-[script](https://github.com/mdechatech/CharTweener/blob/master/Assets/CharTween/Examples/CharTweenExampleFull.cs)
+# Requirements
+- Unity 2018.1.0f2 or newer
+- TextMesh Pro 1.3.0 (in Unity 2018.1.0f2 package manager) or newer
+- DOTween 1.1.695 (February 02, 2018) or newer
+    - **DOTween 1.2.320 (January 07, 2020) and older require small changes, see below**
+
+# Installation
+1. Have [DOTween](http://dotween.demigiant.com/download.php) and TextMeshPro in your project
+2. Get the .unitypackage from the [latest release](https://github.com/mdechatech/CharTweener/releases)
+3. Open and import, exclude the Examples folder if needed
+4. See fix for old DOTween version if needed
+
+## Fix for old DOTween version
+Applies to DOTween 1.2.320 (January 07, 2020) and older
+```c#
+/*** VertexGradientPlugin.cs, lines 30-34 ***/
+
+        // COMMENT this method if DOTween version is 1.2.320 or older
+        public override void SetFrom(TweenerCore<VertexGradient, VertexGradient, NoOptions> t, VertexGradient fromValue, bool setImmediately, bool isRelative) { SetFrom(t, isRelative); }
+
+        // UNCOMMENT this method if DOTween version is 1.2.320 to 1.2.235
+        //public override void SetFrom(TweenerCore<VertexGradient, VertexGradient, NoOptions> t, VertexGradient fromValue, bool setImmediately) { SetFrom(t, false); }
+```
+
+## Examples
+### GIFs
+- Click GIFs to see code
+- Find source scenes in Examples folder, scenes have the same name as the scripts linked in the GIFs
+- All examples run at 1024x768, try adjusting resolution if the examples look misaligned in Unity
+
+## License
+MIT
