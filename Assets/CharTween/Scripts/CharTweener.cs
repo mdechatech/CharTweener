@@ -45,6 +45,11 @@ namespace CharTween
 
         private float visualUpdateInterval;
         private float visualUpdateTimer;
+        
+        // For UGUI
+        // Text's Anchored position relative to the nearest parent canvas
+        // used for calculating characters' canvas-space positions
+        private Vector2 canvasSpacePosition;
 
         /// <summary>
         /// Must be called after creation. This is handled automatically when calling 
@@ -248,6 +253,24 @@ namespace CharTween
             proxyTransformParent = new GameObject("Proxy Transforms").transform;
             proxyTransformParent.SetParent(transform);
             proxyTransformParent.localPosition = Vector3.zero;
+
+            var rt = GetComponent<RectTransform>();
+            if (rt)
+            {
+                proxyTransformParent = proxyTransformParent.gameObject.AddComponent<RectTransform>();
+                proxyTransformParent.localScale = Vector3.one;
+                canvasSpacePosition = rt.anchoredPosition;
+                RectTransform p;
+                while (p = transform.parent as RectTransform)
+                {
+                    var canvas = p.GetComponent<Canvas>();
+                    if (canvas)
+                    {
+                        break;
+                    }
+                    canvasSpacePosition += p.anchoredPosition;
+                }
+            }
         }
 
         void Update()
@@ -344,10 +367,22 @@ namespace CharTween
             {
                 Transform t = new GameObject(charIndex.ToString()).transform;
                 t.SetParent(proxyTransformParent);
-
-                proxy = charIndex >= CharacterCount
-                    ? new ProxyTransform(t, proxyTransformParent, charIndex)
-                    : new ProxyTransform(t, proxyTransformParent, Text.textInfo.characterInfo[charIndex]);
+                if (Text is TextMeshProUGUI)
+                {
+                    t = t.gameObject.AddComponent<RectTransform>();
+                    t.localScale = Vector3.one;
+                    proxy = charIndex >= CharacterCount
+                        ? new ProxyTransform((RectTransform)t, (RectTransform)proxyTransformParent,
+                            canvasSpacePosition, charIndex)
+                        : new ProxyTransform((RectTransform)t, (RectTransform)proxyTransformParent,
+                            canvasSpacePosition, Text.textInfo.characterInfo[charIndex]);
+                }
+                else
+                {
+                    proxy = charIndex >= CharacterCount
+                        ? new ProxyTransform(t, proxyTransformParent, charIndex)
+                        : new ProxyTransform(t, proxyTransformParent, Text.textInfo.characterInfo[charIndex]);
+                }
                 proxyTransformDict.Add(charIndex, proxy);
                 proxyTransformList.Add(proxy);
             }
@@ -590,10 +625,29 @@ namespace CharTween
                 set { target.localPosition = value - localStartPosition; }
             }
 
+            // World position for TMP_Text
+            // Canvas-space position for TextMeshProUGUI
             public Vector3 Position
             {
-                get { return target.position + LocalStartPosition; }
-                set { target.position = value - LocalStartPosition; }
+                get
+                {
+                    var position = Target is RectTransform
+                        ? (Vector3)canvasSpaceParentPosition + (Vector3)((RectTransform)target).anchoredPosition
+                        : target.position;
+                    return position + LocalStartPosition;
+                }
+                set
+                {
+                    if (Target is RectTransform)
+                    {
+                        ((RectTransform)target).anchoredPosition =
+                            value - LocalStartPosition - (Vector3)canvasSpaceParentPosition;
+                    }
+                    else
+                    {
+                        target.position = value - LocalStartPosition;
+                    }
+                }
             }
 
             public List<Tween> Tweens;
@@ -601,6 +655,7 @@ namespace CharTween
             private Transform parent;
             private int charIndex;
             private Vector3 localStartPosition;
+            private Vector2 canvasSpaceParentPosition;
 
             public ProxyTransform(Transform target, Transform parent, int charIndex)
             {
@@ -618,6 +673,17 @@ namespace CharTween
                 this.parent = parent;
                 AssignCharInfo(charInfo);
                 Target.localPosition = Vector3.zero;
+            }
+            public ProxyTransform(RectTransform target, RectTransform parent, Vector2 canvasSpaceParentPos, int charIndex)
+                : this(target, parent, charIndex)
+            {
+                canvasSpaceParentPosition = canvasSpaceParentPos;
+            }
+
+            public ProxyTransform(RectTransform target, RectTransform parent, Vector2 canvasSpaceParentPos, TMP_CharacterInfo charInfo)
+                : this(target, parent, charInfo)
+            {
+                canvasSpaceParentPosition = canvasSpaceParentPos;
             }
 
             public T AddTween<T>(T tween) where T : Tween
