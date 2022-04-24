@@ -260,8 +260,8 @@ namespace CharTween
                 proxyTransformParent = proxyTransformParent.gameObject.AddComponent<RectTransform>();
                 proxyTransformParent.localScale = Vector3.one;
                 canvasSpacePosition = rt.anchoredPosition;
-                RectTransform p;
-                while (p = transform.parent as RectTransform)
+                var p = rt;
+                while (p = p.parent as RectTransform)
                 {
                     var canvas = p.GetComponent<Canvas>();
                     if (canvas)
