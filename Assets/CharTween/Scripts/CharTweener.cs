@@ -401,11 +401,15 @@ namespace CharTween
             {
                 Transform t = new GameObject(charIndex.ToString()).transform;
                 t.SetParent(proxyTransformParent);
+                
+                // For UGUI
+                // Replace Transform with RectTransform
                 if (Text is TextMeshProUGUI)
                 {
                     t = t.gameObject.AddComponent<RectTransform>();
                     t.localScale = Vector3.one;
                 }
+                
                 proxy = charIndex >= CharacterCount
                     ? new ProxyTransform(t, proxyTransformParent, charIndex)
                     : new ProxyTransform(t, proxyTransformParent, Text.textInfo.characterInfo[charIndex]);
@@ -413,6 +417,8 @@ namespace CharTween
                 proxyTransformList.Add(proxy);
             }
 
+            // For UGUI
+            // Set parent canvas-space position to proxy transforms
             if (Text is TextMeshProUGUI)
             {
                 proxy.SetCanvasSpaceParentPosition(canvasSpacePosition);
