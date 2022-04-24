@@ -9,8 +9,6 @@ namespace CharTween.Examples
     {
         void Start()
         {
-            RectTransform r;
-            
             // Set text
             TMP_Text textMesh = GetComponent<TextMeshProUGUI>();
             textMesh.text = "DETERMINATION";
