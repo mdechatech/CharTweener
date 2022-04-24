@@ -45,6 +45,12 @@ namespace CharTween
 
         private float visualUpdateInterval;
         private float visualUpdateTimer;
+        
+        // For UGUI
+        // Text's Anchored position relative to the nearest parent canvas
+        // used for calculating characters' canvas-space positions
+        private Vector2 canvasSpacePosition;
+        private Vector3 previousWorldPosition;
 
         /// <summary>
         /// Must be called after creation. This is handled automatically when calling 
@@ -248,6 +254,19 @@ namespace CharTween
             proxyTransformParent = new GameObject("Proxy Transforms").transform;
             proxyTransformParent.SetParent(transform);
             proxyTransformParent.localPosition = Vector3.zero;
+
+            // For UGUI
+            var rt = transform as RectTransform;
+            if (rt)
+            {
+                // Replace proxyTransformParent's Transform with RectTransform
+                proxyTransformParent = proxyTransformParent.gameObject.AddComponent<RectTransform>();
+                proxyTransformParent.localScale = Vector3.one;
+
+                // Search parent canvas to calculate canvas-space pivot position
+                UpdateCanvasSpacePivotPosition(rt);
+                previousWorldPosition = rt.position;
+            }
         }
 
         void Update()
@@ -281,6 +300,15 @@ namespace CharTween
             {
                 UpdateCharProperties();
             }
+
+            // For UGUI
+            // Update canvas-space position on move
+            var rt = transform as RectTransform;
+            if (rt && previousWorldPosition != rt.position)
+            {
+                UpdateCanvasSpacePivotPosition(rt);
+                previousWorldPosition = rt.position;
+            }
         }
 
         void OnDestroy()
@@ -289,6 +317,35 @@ namespace CharTween
             Destroy(proxyTransformParent.gameObject);
         }
 
+        // For UGUI
+        // Updates TextMeshProUGUI's pivot position relative to its parent canvas
+        private void UpdateCanvasSpacePivotPosition(RectTransform rt)
+        {
+            var isCanvasFound = false;
+            var p = rt;
+            while (p.parent)
+            {
+                p = p.parent as RectTransform;
+                if (!p)
+                {
+                    break;
+                }
+                var canvas = p.GetComponent<Canvas>();
+                if (canvas)
+                {
+                    isCanvasFound = true;
+                    canvasSpacePosition = p.InverseTransformPoint(rt.position);
+                    break;
+                }
+            }
+
+            if (!isCanvasFound)
+            {
+                // fallback to world position
+                canvasSpacePosition = rt.position;
+            }
+        }
+        
         private void UpdateStartPositions()
         {
             if (proxyTransformDict == null)
@@ -344,12 +401,27 @@ namespace CharTween
             {
                 Transform t = new GameObject(charIndex.ToString()).transform;
                 t.SetParent(proxyTransformParent);
-
+                
+                // For UGUI
+                // Replace Transform with RectTransform
+                if (Text is TextMeshProUGUI)
+                {
+                    t = t.gameObject.AddComponent<RectTransform>();
+                    t.localScale = Vector3.one;
+                }
+                
                 proxy = charIndex >= CharacterCount
                     ? new ProxyTransform(t, proxyTransformParent, charIndex)
                     : new ProxyTransform(t, proxyTransformParent, Text.textInfo.characterInfo[charIndex]);
                 proxyTransformDict.Add(charIndex, proxy);
                 proxyTransformList.Add(proxy);
+            }
+
+            // For UGUI
+            // Set parent canvas-space position to proxy transforms
+            if (Text is TextMeshProUGUI)
+            {
+                proxy.SetCanvasSpaceParentPosition(canvasSpacePosition);
             }
 
             return proxy;
@@ -590,10 +662,29 @@ namespace CharTween
                 set { target.localPosition = value - localStartPosition; }
             }
 
+            // World position for TMP_Text
+            // Canvas-space position for TextMeshProUGUI
             public Vector3 Position
             {
-                get { return target.position + LocalStartPosition; }
-                set { target.position = value - LocalStartPosition; }
+                get
+                {
+                    var position = Target is RectTransform
+                        ? (Vector3)canvasSpaceParentPosition + (Vector3)((RectTransform)target).anchoredPosition
+                        : target.position;
+                    return position + LocalStartPosition;
+                }
+                set
+                {
+                    if (Target is RectTransform)
+                    {
+                        ((RectTransform)target).anchoredPosition =
+                            value - LocalStartPosition - (Vector3)canvasSpaceParentPosition;
+                    }
+                    else
+                    {
+                        target.position = value - LocalStartPosition;
+                    }
+                }
             }
 
             public List<Tween> Tweens;
@@ -601,6 +692,7 @@ namespace CharTween
             private Transform parent;
             private int charIndex;
             private Vector3 localStartPosition;
+            private Vector2 canvasSpaceParentPosition;
 
             public ProxyTransform(Transform target, Transform parent, int charIndex)
             {
@@ -618,6 +710,10 @@ namespace CharTween
                 this.parent = parent;
                 AssignCharInfo(charInfo);
                 Target.localPosition = Vector3.zero;
+            }
+            public void SetCanvasSpaceParentPosition(Vector2 position)
+            {
+                canvasSpaceParentPosition = position;
             }
 
             public T AddTween<T>(T tween) where T : Tween
